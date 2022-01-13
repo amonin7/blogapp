@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"github.com/gorilla/mux"
 	"log"
-	"math/rand"
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -18,15 +18,6 @@ type PublicationRequestData struct {
 
 type HttpHandler struct {
 	ds DataSource
-}
-
-func getRandomKey() string {
-	alphaBet := []byte("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
-	rand.Shuffle(len(alphaBet), func(i, j int) {
-		alphaBet[i], alphaBet[j] = alphaBet[j], alphaBet[i]
-	})
-	id := string(alphaBet[:10])
-	return id
 }
 
 func isValidateUserId(userId string) bool {
@@ -82,7 +73,7 @@ func (h *HttpHandler) handleGetPublication(w http.ResponseWriter, r *http.Reques
 
 	post, err := h.ds.getPostById(postId)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
 
@@ -107,7 +98,34 @@ func (h *HttpHandler) handleGetPublicationsByUser(w http.ResponseWriter, r *http
 		return
 	}
 	userId := parts[len(parts)-2]
-	posts := h.ds.getPostsByUserId(userId)
+
+	pageSizeParam := r.URL.Query()["size"]
+	pageSize := 10
+	pageIdParam := r.URL.Query()["page"]
+	pageId := ""
+	if len(pageSizeParam) > 1 {
+		http.Error(w, "More than 1 query param \"size\"", http.StatusBadRequest)
+		return
+	} else if len(pageSizeParam) == 1 {
+		i, err := strconv.Atoi(pageSizeParam[0])
+		if err != nil {
+			http.Error(w, "query param \"size\" should be integer", http.StatusBadRequest)
+			return
+		}
+		pageSize = i
+	}
+	if len(pageIdParam) > 1 {
+		http.Error(w, "More than 1 query param \"page\"", http.StatusBadRequest)
+		return
+	} else if len(pageIdParam) == 1 {
+		pageId = pageIdParam[0]
+	}
+
+	posts, err := h.ds.getPostsByUserId(userId, pageSize, pageId)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 
 	rawResponse, err := json.Marshal(posts)
 	if err != nil {
@@ -136,8 +154,10 @@ func NewServer() *http.Server {
 	r := mux.NewRouter()
 
 	ids := &InmemoryDataSource{
-		idToPost:      make(map[string]PostData),
-		userIdToPosts: make(map[string][]PostData),
+		idToPost:         make(map[string]PostData),
+		userIdToPosts:    make(map[string][]PostData),
+		pageIdToOffset:   make(map[string]int),
+		pageIdToPageSize: make(map[string]int),
 	}
 
 	handler := &HttpHandler{
