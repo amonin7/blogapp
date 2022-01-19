@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"twitter/storage"
+	"twitter/storage/inmemory"
 )
 
 type PublicationRequestData struct {
@@ -17,7 +19,7 @@ type PublicationRequestData struct {
 }
 
 type HttpHandler struct {
-	ds DataSource
+	ds storage.DataSource
 }
 
 func isValidateUserId(userId string) bool {
@@ -44,9 +46,9 @@ func (h *HttpHandler) handlePublication(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, "Provided userId is not valid", http.StatusUnauthorized)
 		return
 	}
-	postId := getRandomKey()
+	postId := inmemory.GetRandomKey()
 
-	postData := PostData{postId, publicationData.Text, userId, time.Now().String()}
+	postData := storage.PostData{postId, publicationData.Text, userId, time.Now().String()}
 	err = h.ds.save(postData)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -153,11 +155,11 @@ func handleRoot(w http.ResponseWriter, r *http.Request) {
 func NewServer() *http.Server {
 	r := mux.NewRouter()
 
-	ids := &InmemoryDataSource{
-		idToPost:         make(map[string]PostData),
-		userIdToPosts:    make(map[string][]PostData),
-		pageIdToOffset:   make(map[string]int),
-		pageIdToPageSize: make(map[string]int),
+	ids := &inmemory.InmemoryDataSource{
+		IdToPost:         make(map[string]storage.PostData),
+		UserIdToPosts:    make(map[string][]storage.PostData),
+		PageIdToOffset:   make(map[string]int),
+		PageIdToPageSize: make(map[string]int),
 	}
 
 	handler := &HttpHandler{
