@@ -25,7 +25,7 @@ type PostsByUser struct {
 }
 
 type DataSource interface {
-	save(ctx context.Context, data PostData) error
-	getPostById(ctx context.Context, id string) (PostData, error)
-	getPostsByUserId(ctx context.Context, userId string, pageSize int, pageId string) (PostsByUser, error)
+	Save(ctx context.Context, data PostData) error
+	GetPostById(ctx context.Context, id string) (PostData, error)
+	GetPostsByUserId(ctx context.Context, userId string, pageSize int, pageId string) (PostsByUser, error)
 }

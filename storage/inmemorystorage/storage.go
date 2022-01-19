@@ -1,7 +1,9 @@
-package inmemory
+package inmemorystorage
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"math/rand"
 	"sync"
 	"twitter/storage"
@@ -15,29 +17,32 @@ type InmemoryDataSource struct {
 	PageIdToPageSize map[string]int
 }
 
-func (ids *InmemoryDataSource) Save(data storage.PostData) error {
-	_, ok := ids.IdToPost[data.Id]
-	if ok {
-		return errors.New("this id is already in storage")
-	} else {
-		ids.IdToPost[data.Id] = data
-		val, _ := ids.UserIdToPosts[data.AuthorId]
-		val = append(val, data)
-		ids.UserIdToPosts[data.AuthorId] = val
-		return nil
+func (ids *InmemoryDataSource) Save(ctx context.Context, data storage.PostData) error {
+	for attempt := 0; attempt < 5; attempt++ {
+		_, ok := ids.IdToPost[data.Id]
+		if ok {
+			continue
+		} else {
+			ids.IdToPost[data.Id] = data
+			val, _ := ids.UserIdToPosts[data.AuthorId]
+			val = append(val, data)
+			ids.UserIdToPosts[data.AuthorId] = val
+			return nil
+		}
 	}
+	return fmt.Errorf("too much attempts during inserting - %w", storage.ErrorCollision)
 }
 
-func (ids *InmemoryDataSource) GetPostById(id string) (storage.PostData, error) {
+func (ids *InmemoryDataSource) GetPostById(ctx context.Context, id string) (storage.PostData, error) {
 	val, ok := ids.IdToPost[id]
 	if ok {
 		return val, nil
 	} else {
-		return storage.PostData{"", "", "", ""}, errors.New("There is no post with id " + id)
+		return storage.PostData{}, fmt.Errorf("no document with id %v - %w", id, storage.ErrorNotFound)
 	}
 }
 
-func (ids *InmemoryDataSource) GetPostsByUserId(userId string, pageSize int, pageId string) (storage.PostsByUser, error) {
+func (ids *InmemoryDataSource) GetPostsByUserId(ctx context.Context, userId string, pageSize int, pageId string) (storage.PostsByUser, error) {
 	val, ok := ids.UserIdToPosts[userId]
 	if pageId == "" {
 		if ok {

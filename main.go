@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 	"twitter/storage"
-	"twitter/storage/inmemory"
+	"twitter/storage/inmemorystorage"
 )
 
 type PublicationRequestData struct {
@@ -46,10 +46,10 @@ func (h *HttpHandler) handlePublication(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, "Provided userId is not valid", http.StatusUnauthorized)
 		return
 	}
-	postId := inmemory.GetRandomKey()
+	postId := inmemorystorage.GetRandomKey()
 
 	postData := storage.PostData{postId, publicationData.Text, userId, time.Now().String()}
-	err = h.ds.save(postData)
+	err = h.ds.Save(r.Context(), postData)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -73,7 +73,7 @@ func (h *HttpHandler) handleGetPublication(w http.ResponseWriter, r *http.Reques
 	parts := strings.Split(r.URL.Path, "/")
 	postId := parts[len(parts)-1]
 
-	post, err := h.ds.getPostById(postId)
+	post, err := h.ds.GetPostById(r.Context(), postId)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
@@ -123,7 +123,7 @@ func (h *HttpHandler) handleGetPublicationsByUser(w http.ResponseWriter, r *http
 		pageId = pageIdParam[0]
 	}
 
-	posts, err := h.ds.getPostsByUserId(userId, pageSize, pageId)
+	posts, err := h.ds.GetPostsByUserId(r.Context(), userId, pageSize, pageId)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -155,7 +155,7 @@ func handleRoot(w http.ResponseWriter, r *http.Request) {
 func NewServer() *http.Server {
 	r := mux.NewRouter()
 
-	ids := &inmemory.InmemoryDataSource{
+	ids := &inmemorystorage.InmemoryDataSource{
 		IdToPost:         make(map[string]storage.PostData),
 		UserIdToPosts:    make(map[string][]storage.PostData),
 		PageIdToOffset:   make(map[string]int),
