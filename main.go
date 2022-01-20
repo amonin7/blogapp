@@ -6,12 +6,14 @@ import (
 	"github.com/gorilla/mux"
 	"log"
 	"net/http"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
 	"twitter/storage"
-	"twitter/storage/inmemorystorage"
+	"twitter/storage/generator"
+	"twitter/storage/mongostorage"
 )
 
 type PublicationRequestData struct {
@@ -46,7 +48,7 @@ func (h *HttpHandler) handlePublication(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, "Provided userId is not valid", http.StatusUnauthorized)
 		return
 	}
-	postId := inmemorystorage.GetRandomKey()
+	postId := generator.GetRandomKey()
 
 	postData := storage.PostData{postId, publicationData.Text, userId, time.Now().String()}
 	err = h.ds.Save(r.Context(), postData)
@@ -155,15 +157,11 @@ func handleRoot(w http.ResponseWriter, r *http.Request) {
 func NewServer() *http.Server {
 	r := mux.NewRouter()
 
-	ids := &inmemorystorage.InmemoryDataSource{
-		IdToPost:         make(map[string]storage.PostData),
-		UserIdToPosts:    make(map[string][]storage.PostData),
-		PageIdToOffset:   make(map[string]int),
-		PageIdToPageSize: make(map[string]int),
-	}
+	mongoUrl := os.Getenv("MONGO_URL")
+	mongoStorage := mongostorage.DatabaseStorage(mongoUrl)
 
 	handler := &HttpHandler{
-		ds: ids,
+		ds: mongoStorage,
 	}
 
 	r.HandleFunc("/", handleRoot)

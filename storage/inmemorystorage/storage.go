@@ -4,9 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math/rand"
 	"sync"
 	"twitter/storage"
+	"twitter/storage/generator"
 )
 
 type InmemoryDataSource struct {
@@ -38,7 +38,7 @@ func (ids *InmemoryDataSource) GetPostById(ctx context.Context, id string) (stor
 	if ok {
 		return val, nil
 	} else {
-		return storage.PostData{}, fmt.Errorf("no document with id %v - %w", id, storage.ErrorNotFound)
+		return storage.PostData{}, fmt.Errorf("no posts with id %v - %w", id, storage.ErrorNotFound)
 	}
 }
 
@@ -49,7 +49,7 @@ func (ids *InmemoryDataSource) GetPostsByUserId(ctx context.Context, userId stri
 			if len(val) <= pageSize {
 				return storage.PostsByUser{val, ""}, nil
 			} else {
-				newPageId := GetRandomKey()
+				newPageId := generator.GetRandomKey()
 				ids.PageIdToPageSize[newPageId] = pageSize
 				ids.PageIdToOffset[newPageId] = pageSize
 				return storage.PostsByUser{val[:pageSize], newPageId}, nil
@@ -68,7 +68,7 @@ func (ids *InmemoryDataSource) GetPostsByUserId(ctx context.Context, userId stri
 				if len(val) <= pageSize {
 					return storage.PostsByUser{val, ""}, nil
 				} else {
-					newPageId := GetRandomKey()
+					newPageId := generator.GetRandomKey()
 					ids.PageIdToPageSize[newPageId] = pageSize
 					ids.PageIdToOffset[newPageId] = ids.PageIdToOffset[pageId] + pageSize
 					return storage.PostsByUser{val[:pageSize], newPageId}, nil
@@ -80,13 +80,4 @@ func (ids *InmemoryDataSource) GetPostsByUserId(ctx context.Context, userId stri
 			return storage.PostsByUser{[]storage.PostData{}, ""}, errors.New("this user has no posts yet")
 		}
 	}
-}
-
-func GetRandomKey() string {
-	alphaBet := []byte("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
-	rand.Shuffle(len(alphaBet), func(i, j int) {
-		alphaBet[i], alphaBet[j] = alphaBet[j], alphaBet[i]
-	})
-	id := string(alphaBet[:10])
-	return id
 }
