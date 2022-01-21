@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/gorilla/mux"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"log"
 	"net/http"
 	"os"
@@ -12,7 +13,6 @@ import (
 	"strings"
 	"time"
 	"twitter/storage"
-	"twitter/storage/generator"
 	"twitter/storage/mongostorage"
 )
 
@@ -48,9 +48,12 @@ func (h *HttpHandler) handlePublication(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, "Provided userId is not valid", http.StatusUnauthorized)
 		return
 	}
-	postId := generator.GetRandomKey()
-
-	postData := storage.PostData{postId, publicationData.Text, userId, time.Now().String()}
+	postData := storage.PostData{
+		Id:        primitive.NewObjectID(),
+		Text:      publicationData.Text,
+		AuthorId:  userId,
+		CreatedAt: time.Now().String(),
+	}
 	err = h.ds.Save(r.Context(), postData)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -166,7 +169,7 @@ func NewServer() *http.Server {
 
 	r.HandleFunc("/", handleRoot)
 	r.HandleFunc("/api/v1/posts", handler.handlePublication).Methods(http.MethodPost)
-	r.HandleFunc("/api/v1/posts/{postId:\\w{10}}", handler.handleGetPublication).Methods(http.MethodGet)
+	r.HandleFunc("/api/v1/posts/{postId:\\w+}", handler.handleGetPublication).Methods(http.MethodGet)
 	r.HandleFunc("/api/v1/users/{userId:\\w+}/posts", handler.handleGetPublicationsByUser).Methods(http.MethodGet)
 
 	return &http.Server{

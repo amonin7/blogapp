@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 var (
@@ -13,10 +14,10 @@ var (
 )
 
 type PostData struct {
-	Id        string `json:"id"`
-	Text      string `json:"text"`
-	AuthorId  string `json:"authorId"`
-	CreatedAt string `json:"createdAt"`
+	Id        primitive.ObjectID `json:"_id" bson:"_id"`
+	Text      string             `json:"text" bson:"text"`
+	AuthorId  string             `json:"authorId" bson:"authorId"`
+	CreatedAt string             `json:"createdAt" bson:"createdAt"`
 }
 
 type PostsByUser struct {

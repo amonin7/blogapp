@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/x/bsonx"
@@ -13,7 +14,7 @@ import (
 )
 
 const dbName = "blog_app_db"
-const collectionName = "test"
+const collectionName = "posts"
 
 type storage struct {
 	posts *mongo.Collection
@@ -38,7 +39,10 @@ func DatabaseStorage(mongoUrl string) *storage {
 func ensureIndexes(ctx context.Context, collection *mongo.Collection) {
 	indexModels := []mongo.IndexModel{
 		{
-			Keys: bsonx.Doc{{Key: "_id", Value: bsonx.Int32(1)}},
+			Keys: bsonx.Doc{
+				{Key: "authorId", Value: bsonx.Int32(1)},
+				{Key: "_id", Value: bsonx.Int32(-1)},
+			},
 		},
 	}
 	opts := options.CreateIndexes().SetMaxTime(10 * time.Second)
@@ -50,7 +54,8 @@ func ensureIndexes(ctx context.Context, collection *mongo.Collection) {
 
 func (s *storage) Save(ctx context.Context, data storage2.PostData) error {
 	for attempt := 0; attempt < 5; attempt++ {
-		_, err := s.posts.InsertOne(ctx, data)
+		res, err := s.posts.InsertOne(ctx, data)
+		fmt.Println(res)
 		if err != nil {
 			if mongo.IsDuplicateKeyError(err) {
 				continue
@@ -65,7 +70,12 @@ func (s *storage) Save(ctx context.Context, data storage2.PostData) error {
 
 func (s *storage) GetPostById(ctx context.Context, id string) (storage2.PostData, error) {
 	var result storage2.PostData
-	err := s.posts.FindOne(ctx, bson.M{"id": id}).Decode(&result)
+	objectId, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		return storage2.PostData{}, fmt.Errorf("invalid id - %w", storage2.StorageError)
+	}
+	err = s.posts.FindOne(ctx, bson.M{"_id": objectId}).Decode(&result)
+
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
 			return storage2.PostData{}, fmt.Errorf("no posts with id %v - %w", id, storage2.ErrorNotFound)
@@ -76,5 +86,28 @@ func (s *storage) GetPostById(ctx context.Context, id string) (storage2.PostData
 }
 
 func (s *storage) GetPostsByUserId(ctx context.Context, userId string, pageSize int, pageId string) (storage2.PostsByUser, error) {
-	return storage2.PostsByUser{}, nil
+	var posts []storage2.PostData
+	var post storage2.PostData
+	opts := options.Find()
+	opts.SetSort(bson.D{
+		{"authorId", 1},
+		{"_id", -1},
+	})
+	opts.SetLimit(int64(pageSize))
+
+	cursor, err := s.posts.Find(ctx, bson.M{"authorId": userId, "_id": "$gte: " + pageId}, opts)
+	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return storage2.PostsByUser{}, fmt.Errorf("no posts with userId %v and pageId %v - %w", userId, pageId, storage2.ErrorNotFound)
+		}
+		return storage2.PostsByUser{}, fmt.Errorf("something went wrong - %w", storage2.StorageError)
+	}
+	for cursor.Next(ctx) {
+		err := cursor.Decode(&post)
+		if err != nil {
+			return storage2.PostsByUser{}, err
+		}
+		posts = append(posts, post)
+	}
+	return storage2.PostsByUser{Posts: posts, NextPageId: post.Id.String()}, nil
 }
