@@ -7,7 +7,11 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	_ "go.mongodb.org/mongo-driver/mongo/description"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	_ "go.mongodb.org/mongo-driver/mongo/readconcern"
+	_ "go.mongodb.org/mongo-driver/mongo/readpref"
+	_ "go.mongodb.org/mongo-driver/mongo/writeconcern"
 	"go.mongodb.org/mongo-driver/x/bsonx"
 	"time"
 	storage2 "twitter/storage"
@@ -94,8 +98,14 @@ func (s *storage) GetPostsByUserId(ctx context.Context, userId string, pageSize 
 		{"_id", -1},
 	})
 	opts.SetLimit(int64(pageSize))
+	var cursor *mongo.Cursor
+	var err error
+	if pageId == "" {
+		cursor, err = s.posts.Find(ctx, bson.M{"authorId": userId}, opts)
+	} else {
+		cursor, err = s.posts.Find(ctx, bson.M{"authorId": userId, "_id": "$gte: " + pageId}, opts)
+	}
 
-	cursor, err := s.posts.Find(ctx, bson.M{"authorId": userId, "_id": "$gte: " + pageId}, opts)
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
 			return storage2.PostsByUser{}, fmt.Errorf("no posts with userId %v and pageId %v - %w", userId, pageId, storage2.ErrorNotFound)
