@@ -148,13 +148,17 @@ func (h *HttpHandler) handleGetPublicationsByUser(w http.ResponseWriter, r *http
 	}
 }
 
-func handleRoot(w http.ResponseWriter, r *http.Request) {
+func (h *HttpHandler) handleRoot(w http.ResponseWriter, r *http.Request) {
 	_, err := w.Write([]byte("Hello from Server!"))
 	if err != nil {
 		fmt.Println(err.Error())
 		return
 	}
 	w.Header().Set("Content-Type", "text/plain")
+}
+
+func (h *HttpHandler) handlePing(w http.ResponseWriter, r *http.Request) {
+	return
 }
 
 func NewServer() *http.Server {
@@ -167,7 +171,8 @@ func NewServer() *http.Server {
 		ds: mongoStorage,
 	}
 
-	r.HandleFunc("/", handleRoot)
+	r.HandleFunc("/", handler.handleRoot)
+	r.HandleFunc("/maintenance/ping", handler.handlePing).Methods(http.MethodGet)
 	r.HandleFunc("/api/v1/posts", handler.handlePublication).Methods(http.MethodPost)
 	r.HandleFunc("/api/v1/posts/{postId:\\w+}", handler.handleGetPublication).Methods(http.MethodGet)
 	r.HandleFunc("/api/v1/users/{userId:\\w+}/posts", handler.handleGetPublicationsByUser).Methods(http.MethodGet)
