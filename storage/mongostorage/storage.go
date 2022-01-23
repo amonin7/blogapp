@@ -58,8 +58,7 @@ func ensureIndexes(ctx context.Context, collection *mongo.Collection) {
 
 func (s *storage) Save(ctx context.Context, data storage2.PostData) error {
 	for attempt := 0; attempt < 5; attempt++ {
-		res, err := s.posts.InsertOne(ctx, data)
-		fmt.Println(res)
+		_, err := s.posts.InsertOne(ctx, data)
 		if err != nil {
 			if mongo.IsDuplicateKeyError(err) {
 				continue
@@ -103,7 +102,11 @@ func (s *storage) GetPostsByUserId(ctx context.Context, userId string, pageSize 
 	if pageId == "" {
 		cursor, err = s.posts.Find(ctx, bson.M{"authorId": userId}, opts)
 	} else {
-		cursor, err = s.posts.Find(ctx, bson.M{"authorId": userId, "_id": "$gte: " + pageId}, opts)
+		objectId, err := primitive.ObjectIDFromHex(pageId)
+		if err != nil {
+			return storage2.PostsByUser{}, fmt.Errorf("invalid id - %w", storage2.StorageError)
+		}
+		cursor, err = s.posts.Find(ctx, bson.M{"authorId": userId, "_id": bson.M{"$lt": objectId}}, opts)
 	}
 
 	if err != nil {
@@ -112,12 +115,20 @@ func (s *storage) GetPostsByUserId(ctx context.Context, userId string, pageSize 
 		}
 		return storage2.PostsByUser{}, fmt.Errorf("something went wrong - %w", storage2.StorageError)
 	}
+	hasPost := false
 	for cursor.Next(ctx) {
+		if !hasPost {
+			hasPost = true
+		}
 		err := cursor.Decode(&post)
 		if err != nil {
 			return storage2.PostsByUser{}, err
 		}
 		posts = append(posts, post)
 	}
-	return storage2.PostsByUser{Posts: posts, NextPageId: post.Id.String()}, nil
+	if !hasPost {
+		return storage2.PostsByUser{Posts: posts, NextPageId: primitive.NilObjectID}, nil
+	} else {
+		return storage2.PostsByUser{Posts: posts, NextPageId: post.Id}, nil
+	}
 }

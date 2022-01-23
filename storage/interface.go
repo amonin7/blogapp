@@ -21,8 +21,8 @@ type PostData struct {
 }
 
 type PostsByUser struct {
-	Posts      []PostData `json:"posts"`
-	NextPageId string     `json:"nextPage"`
+	Posts      []PostData         `json:"posts" bson:"posts"`
+	NextPageId primitive.ObjectID `json:"nextPage" bson:"nextPage"`
 }
 
 type DataSource interface {
