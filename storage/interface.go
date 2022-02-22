@@ -29,4 +29,5 @@ type DataSource interface {
 	Save(ctx context.Context, data PostData) error
 	GetPostById(ctx context.Context, id string) (PostData, error)
 	GetPostsByUserId(ctx context.Context, userId string, pageSize int, pageId string) (PostsByUser, error)
+	Update(ctx context.Context, data PostData) error
 }

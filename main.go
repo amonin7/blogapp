@@ -161,6 +161,54 @@ func (h *HttpHandler) handlePing(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
+func (h *HttpHandler) handleUpdatePublication(w http.ResponseWriter, r *http.Request) {
+	parts := strings.Split(r.URL.Path, "/")
+	postId := parts[len(parts)-1]
+
+	post, err := h.ds.GetPostById(r.Context(), postId)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+
+	var publicationData PublicationRequestData
+	err = json.NewDecoder(r.Body).Decode(&publicationData)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	userId := r.Header.Get("System-Design-User-Id")
+	if !isValidateUserId(userId) {
+		http.Error(w, "Provided userId is not valid", http.StatusUnauthorized)
+		return
+	}
+
+	if userId != post.AuthorId {
+		http.Error(w, "This post is published by another user", http.StatusForbidden)
+		return
+	}
+
+	post.Text = publicationData.Text
+	err = h.ds.Update(r.Context(), post)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	rawResponse, err := json.Marshal(post)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_, err = w.Write(rawResponse)
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+}
+
 func NewServer() *http.Server {
 	r := mux.NewRouter()
 
@@ -175,6 +223,7 @@ func NewServer() *http.Server {
 	r.HandleFunc("/maintenance/ping", handler.handlePing).Methods(http.MethodGet)
 	r.HandleFunc("/api/v1/posts", handler.handlePublication).Methods(http.MethodPost)
 	r.HandleFunc("/api/v1/posts/{postId:\\w+}", handler.handleGetPublication).Methods(http.MethodGet)
+	r.HandleFunc("/api/v1/posts/{postId:\\w+}", handler.handleUpdatePublication).Methods(http.MethodPatch)
 	r.HandleFunc("/api/v1/users/{userId:\\w+}/posts", handler.handleGetPublicationsByUser).Methods(http.MethodGet)
 
 	return &http.Server{
