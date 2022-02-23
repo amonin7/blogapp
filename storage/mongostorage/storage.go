@@ -133,3 +133,12 @@ func (s *storage) GetPostsByUserId(ctx context.Context, userId string, pageSize 
 		return storage2.PostsByUser{Posts: posts, NextPageId: post.Id}, nil
 	}
 }
+
+func (s *storage) Update(ctx context.Context, data storage2.PostData) error {
+	update := bson.M{"$set": bson.M{"text": data.Text}}
+	_, err := s.posts.UpdateByID(ctx, data.Id, update)
+	if err != nil {
+		return fmt.Errorf("something went wrong - %w, %v", storage2.StorageError, err)
+	}
+	return nil
+}
