@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"sync"
+	"twitter/generator"
 	"twitter/storage"
-	"twitter/storage/generator"
 )
 
 type InmemoryDataSource struct {
