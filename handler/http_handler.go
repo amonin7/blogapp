@@ -17,7 +17,7 @@ type PublicationRequestData struct {
 }
 
 type HttpHandler struct {
-	Storage storage.DataSource
+	Storage storage.Storage
 }
 
 func isValidUserId(userId string) bool {
