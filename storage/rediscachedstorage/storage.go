@@ -30,7 +30,7 @@ func (s *Storage) Save(ctx context.Context, data storage.PostData) error {
 	if err != nil {
 		return err
 	}
-	fullKey := s.fullKey(data.Id.Hex())
+	fullKey := s.fullPostByIdKey(data.Id.Hex())
 	rawResponse, err := json.Marshal(data)
 	if err != nil {
 		return err
@@ -45,7 +45,7 @@ func (s *Storage) Save(ctx context.Context, data storage.PostData) error {
 }
 
 func (s *Storage) GetPostById(ctx context.Context, id string) (storage.PostData, error) {
-	fullKey := s.fullKey(id)
+	fullKey := s.fullPostByIdKey(id)
 	rawData, err := s.client.Get(ctx, fullKey).Result()
 	result := storage.PostData{}
 	switch {
@@ -122,11 +122,25 @@ func (s *Storage) GetPostsByUserId(ctx context.Context, userId string, pageSize 
 }
 
 func (s *Storage) Update(ctx context.Context, data storage.PostData) error {
-	//TODO implement me
-	panic("implement me")
+	err := s.persistentStorage.Update(ctx, data)
+	if err != nil {
+		return err
+	}
+	fullKey := s.fullPostByIdKey(data.Id.Hex())
+	rawPostData, err := json.Marshal(data)
+	if err != nil {
+		return err
+	}
+
+	resp := s.client.Set(ctx, fullKey, rawPostData, cacheTTL)
+	if err := resp.Err(); err != nil {
+		log.Printf("Failed to update data by key %s in cache", fullKey)
+		return err
+	}
+	return nil
 }
 
-func (s *Storage) fullKey(id string) string {
+func (s *Storage) fullPostByIdKey(id string) string {
 	return "pd:" + id
 }
 
