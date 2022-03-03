@@ -14,10 +14,11 @@ var (
 )
 
 type PostData struct {
-	Id        primitive.ObjectID `json:"_id" bson:"_id"`
-	Text      string             `json:"text" bson:"text"`
-	AuthorId  string             `json:"authorId" bson:"authorId"`
-	CreatedAt string             `json:"createdAt" bson:"createdAt"`
+	Id             primitive.ObjectID `json:"_id" bson:"_id"`
+	Text           string             `json:"text" bson:"text"`
+	AuthorId       string             `json:"authorId" bson:"authorId"`
+	CreatedAt      string             `json:"createdAt" bson:"createdAt"`
+	LastModifiedAt string             `json:"LastModifiedAt" bson:"LastModifiedAt"`
 }
 
 type PostsByUser struct {
