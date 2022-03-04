@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/go-redis/redis/v8"
 	"github.com/gorilla/mux"
 	"log"
 	"net/http"
@@ -8,6 +9,7 @@ import (
 	"time"
 	handler2 "twitter/handler"
 	"twitter/storage/mongostorage"
+	"twitter/storage/rediscachedstorage"
 )
 
 func NewServer() *http.Server {
@@ -15,9 +17,13 @@ func NewServer() *http.Server {
 
 	mongoUrl := os.Getenv("MONGO_URL")
 	mongoStorage := mongostorage.DatabaseStorage(mongoUrl)
+	redisClient := redis.NewClient(&redis.Options{
+		Addr: os.Getenv("REDIS_URL"),
+	})
+	cachedStorage := rediscachedstorage.NewStorage(mongoStorage, redisClient)
 
 	handler := &handler2.HttpHandler{
-		Storage: mongoStorage,
+		Storage: cachedStorage,
 	}
 
 	r.HandleFunc("/", handler.HandleRoot)
