@@ -6,6 +6,7 @@ import (
 	"github.com/go-redis/redis/v8"
 	_ "github.com/go-redis/redis/v8"
 	"log"
+	"strconv"
 	"time"
 	"twitter/storage"
 )
@@ -29,7 +30,7 @@ func (s *Storage) Save(ctx context.Context, data storage.PostData) error {
 	if err != nil {
 		return err
 	}
-	fullKey := s.fullKey(data.Id.Hex())
+	fullKey := s.fullPostByIdKey(data.Id.Hex())
 	rawResponse, err := json.Marshal(data)
 	if err != nil {
 		return err
@@ -44,7 +45,7 @@ func (s *Storage) Save(ctx context.Context, data storage.PostData) error {
 }
 
 func (s *Storage) GetPostById(ctx context.Context, id string) (storage.PostData, error) {
-	fullKey := s.fullKey(id)
+	fullKey := s.fullPostByIdKey(id)
 	rawData, err := s.client.Get(ctx, fullKey).Result()
 	result := storage.PostData{}
 	switch {
@@ -82,17 +83,69 @@ func (s *Storage) GetPostById(ctx context.Context, id string) (storage.PostData,
 }
 
 func (s *Storage) GetPostsByUserId(ctx context.Context, userId string, pageSize int, pageId string) (storage.PostsByUser, error) {
-	//TODO implement me
-	panic("implement me")
+	fullKey := s.fullPostsByUserIdKey(userId, pageSize, pageId)
+	rawData, err := s.client.Get(ctx, fullKey).Result()
+	result := storage.PostsByUser{}
+	switch {
+	case err == redis.Nil:
+	// go to persistence
+	case err != nil:
+		// this is similar to returning null
+		return result, err
+	default:
+		log.Println("Successfully loaded key from cache")
+		err = json.Unmarshal([]byte(rawData), &result)
+		if err != nil {
+			return storage.PostsByUser{}, err
+		}
+		return result, nil
+	}
+
+	result, err = s.persistentStorage.GetPostsByUserId(ctx, userId, pageSize, pageId)
+	if err != nil {
+		return storage.PostsByUser{}, err
+	}
+
+	rawPostsByUser, err := json.Marshal(result)
+	if err != nil {
+		return storage.PostsByUser{}, err
+	}
+
+	resp := s.client.Set(ctx, fullKey, string(rawPostsByUser), cacheTTL)
+	if err := resp.Err(); err != nil {
+		log.Printf("Failed to save key %s to redis", fullKey)
+		return storage.PostsByUser{}, err
+	}
+
+	log.Println("Successfully loaded key from persistence")
+	return result, nil
 }
 
 func (s *Storage) Update(ctx context.Context, data storage.PostData) error {
-	//TODO implement me
-	panic("implement me")
+	err := s.persistentStorage.Update(ctx, data)
+	if err != nil {
+		return err
+	}
+	fullKey := s.fullPostByIdKey(data.Id.Hex())
+	rawPostData, err := json.Marshal(data)
+	if err != nil {
+		return err
+	}
+
+	resp := s.client.Set(ctx, fullKey, rawPostData, cacheTTL)
+	if err := resp.Err(); err != nil {
+		log.Printf("Failed to update data by key %s in cache", fullKey)
+		return err
+	}
+	return nil
 }
 
-func (s *Storage) fullKey(id string) string {
+func (s *Storage) fullPostByIdKey(id string) string {
 	return "pd:" + id
+}
+
+func (s *Storage) fullPostsByUserIdKey(userId string, pageSize int, pageId string) string {
+	return "pd:" + userId + ";" + strconv.Itoa(pageSize) + ";" + pageId
 }
 
 var _ storage.Storage = (*Storage)(nil)

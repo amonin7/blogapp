@@ -45,10 +45,11 @@ func (h *HttpHandler) HandlePublication(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	postData := storage.PostData{
-		Id:        primitive.NewObjectID(),
-		Text:      publicationData.Text,
-		AuthorId:  userId,
-		CreatedAt: time.Now().String(),
+		Id:             primitive.NewObjectID(),
+		Text:           publicationData.Text,
+		AuthorId:       userId,
+		CreatedAt:      time.Now().String(),
+		LastModifiedAt: time.Now().String(),
 	}
 	err = h.Storage.Save(r.Context(), postData)
 	if err != nil {
@@ -185,6 +186,8 @@ func (h *HttpHandler) HandleUpdatePublication(w http.ResponseWriter, r *http.Req
 	}
 
 	post.Text = publicationData.Text
+	post.LastModifiedAt = time.Now().String()
+
 	err = h.Storage.Update(r.Context(), post)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
