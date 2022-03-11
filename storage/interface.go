@@ -8,9 +8,9 @@ import (
 )
 
 var (
-	StorageError   = errors.New("storage")
-	ErrorCollision = fmt.Errorf("%w.collision", StorageError)
-	ErrorNotFound  = fmt.Errorf("%w.not_found", StorageError)
+	CommonStorageError = errors.New("storage")
+	ErrorCollision     = fmt.Errorf("%w.collision", CommonStorageError)
+	ErrorNotFound      = fmt.Errorf("%w.not_found", CommonStorageError)
 )
 
 type PostData struct {

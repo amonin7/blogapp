@@ -55,7 +55,7 @@ func (ids *InmemoryDataSource) GetPostsByUserId(ctx context.Context, userId stri
 				ids.PageIdToOffset[newPageId] = pageSize
 				objectId, err := primitive.ObjectIDFromHex(newPageId)
 				if err != nil {
-					return storage.PostsByUser{}, fmt.Errorf("invalid id - %w", storage.StorageError)
+					return storage.PostsByUser{}, fmt.Errorf("invalid id - %w", storage.CommonStorageError)
 				}
 				return storage.PostsByUser{Posts: val[:pageSize], NextPageId: objectId}, nil
 			}
