@@ -64,7 +64,7 @@ func (s *storage) Save(ctx context.Context, data storage2.PostData) error {
 			if mongo.IsDuplicateKeyError(err) {
 				continue
 			}
-			return fmt.Errorf("something went wrong - %w", storage2.StorageError)
+			return fmt.Errorf("something went wrong - %w", storage2.CommonStorageError)
 		}
 
 		return nil
@@ -76,7 +76,7 @@ func (s *storage) GetPostById(ctx context.Context, id string) (storage2.PostData
 	var result storage2.PostData
 	objectId, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
-		return storage2.PostData{}, fmt.Errorf("invalid id - %w", storage2.StorageError)
+		return storage2.PostData{}, fmt.Errorf("invalid id - %w", storage2.CommonStorageError)
 	}
 	err = s.posts.FindOne(ctx, bson.M{"_id": objectId}).Decode(&result)
 
@@ -84,7 +84,7 @@ func (s *storage) GetPostById(ctx context.Context, id string) (storage2.PostData
 		if errors.Is(err, mongo.ErrNoDocuments) {
 			return storage2.PostData{}, fmt.Errorf("no posts with id %v - %w", id, storage2.ErrorNotFound)
 		}
-		return storage2.PostData{}, fmt.Errorf("something went wrong - %w", storage2.StorageError)
+		return storage2.PostData{}, fmt.Errorf("something went wrong - %w", storage2.CommonStorageError)
 	}
 	return result, nil
 }
@@ -105,7 +105,7 @@ func (s *storage) GetPostsByUserId(ctx context.Context, userId string, pageSize 
 	} else {
 		objectId, err := primitive.ObjectIDFromHex(pageId)
 		if err != nil {
-			return storage2.PostsByUser{}, fmt.Errorf("invalid id - %w", storage2.StorageError)
+			return storage2.PostsByUser{}, fmt.Errorf("invalid id - %w", storage2.CommonStorageError)
 		}
 		cursor, err = s.posts.Find(ctx, bson.M{"authorId": userId, "_id": bson.M{"$lt": objectId}}, opts)
 	}
@@ -114,7 +114,7 @@ func (s *storage) GetPostsByUserId(ctx context.Context, userId string, pageSize 
 		if errors.Is(err, mongo.ErrNoDocuments) {
 			return storage2.PostsByUser{}, fmt.Errorf("no posts with userId %v and pageId %v - %w", userId, pageId, storage2.ErrorNotFound)
 		}
-		return storage2.PostsByUser{}, fmt.Errorf("something went wrong - %w", storage2.StorageError)
+		return storage2.PostsByUser{}, fmt.Errorf("something went wrong - %w", storage2.CommonStorageError)
 	}
 	hasPost := false
 	for cursor.Next(ctx) {
@@ -138,7 +138,7 @@ func (s *storage) Update(ctx context.Context, data storage2.PostData) error {
 	update := bson.M{"$set": bson.M{"text": data.Text}}
 	_, err := s.posts.UpdateByID(ctx, data.Id, update)
 	if err != nil {
-		return fmt.Errorf("something went wrong - %w, %v", storage2.StorageError, err)
+		return fmt.Errorf("something went wrong - %w, %v", storage2.CommonStorageError, err)
 	}
 	return nil
 }
