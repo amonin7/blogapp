@@ -39,8 +39,6 @@ func DatabaseStorage(mongoUrl string) *storage {
 	}
 }
 
-// TODO: Add sharding by userId + postId
-// TODO: Add to public API composite key - to understand the userId by postId
 func ensureIndexes(ctx context.Context, collection *mongo.Collection) {
 	indexModels := []mongo.IndexModel{
 		{

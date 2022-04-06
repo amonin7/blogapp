@@ -18,7 +18,7 @@ type PostData struct {
 	Text           string             `json:"text" bson:"text"`
 	AuthorId       string             `json:"authorId" bson:"authorId"`
 	CreatedAt      string             `json:"createdAt" bson:"createdAt"`
-	LastModifiedAt string             `json:"LastModifiedAt" bson:"LastModifiedAt"`
+	LastModifiedAt string             `json:"lastModifiedAt" bson:"lastModifiedAt"`
 }
 
 type PostsByUser struct {
