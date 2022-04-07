@@ -39,8 +39,6 @@ func DatabaseStorage(mongoUrl string) *storage {
 	}
 }
 
-// TODO: Add sharding by userId + postId
-// TODO: Add to public API composite key - to understand the userId by postId
 func ensureIndexes(ctx context.Context, collection *mongo.Collection) {
 	indexModels := []mongo.IndexModel{
 		{
@@ -135,7 +133,10 @@ func (s *storage) GetPostsByUserId(ctx context.Context, userId string, pageSize 
 }
 
 func (s *storage) Update(ctx context.Context, data storage2.PostData) error {
-	update := bson.M{"$set": bson.M{"text": data.Text}}
+	update := bson.D{
+		{"$set", bson.M{"text": data.Text}},
+		{"$set", bson.M{"lastModifiedAt": data.LastModifiedAt}},
+	}
 	_, err := s.posts.UpdateByID(ctx, data.Id, update)
 	if err != nil {
 		return fmt.Errorf("something went wrong - %w, %v", storage2.CommonStorageError, err)
